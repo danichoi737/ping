@@ -18,6 +18,7 @@ $ git clone https://github.com/danichoi737/ping.git
 $ cd ping
 $ mkdir build && cd build
 $ cmake ..
+$ make
 ```
 
 ### 3. Launch
