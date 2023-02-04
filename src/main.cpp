@@ -6,6 +6,8 @@
 #include <getopt.h>
 #include <stdlib.h>
 
+#include "ping.hpp"
+
 int main(int argc, char **argv)
 {
   char *target {};
@@ -34,4 +36,7 @@ int main(int argc, char **argv)
 
   // Save the target IP address from argv
   target = argv[argc - 1];
+
+  Ping *ping = new Ping();
+  ping->init();
 }
