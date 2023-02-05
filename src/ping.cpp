@@ -120,6 +120,27 @@ int Ping::enableCapabilityRaw()
   return modifyCapability(CAP_NET_RAW, CAP_SET);
 }
 
+void Ping::createSocket(PingRTS *rts, socket_st *sock, int family, int socktype, int protocol, int requisite)
+{
+  // TO-DO: add assert conditions
+
+  if (socktype == SOCK_DGRAM) {
+    sock->fd = socket(family, socktype, protocol);
+  }
+
+  // User is not allowed to use ping sockets
+  if (sock->fd == -1 && errno == EACCES) {
+    std::cerr << "Socket creation failed" << std::endl;
+  }
+
+  sock->socktype = socktype;
+
+  // Valid socket
+  if (sock->fd != -1) {
+    return;
+  }
+}
+
 
 /*
  *  Public
@@ -127,6 +148,8 @@ int Ping::enableCapabilityRaw()
 int Ping::init()
 {
   int _result { 0 };
+
+  socket_ipv4_.fd = AF_INET;
 
   // Assign values to addrinfo members
   hints_.ai_flags = AI_CANONNAME;
@@ -143,7 +166,7 @@ int Ping::init()
 
   _result += enableCapabilityRaw();
 
-  // TO-DO: create sockets
+  createSocket(rts_, &socket_ipv4_, AF_INET, hints_.ai_socktype, IPPROTO_ICMP, hints_.ai_family == AF_INET);
 
   _result += disableCapabilityRaw();
 
