@@ -145,7 +145,7 @@ void Ping::createSocket(PingRTS *rts, socket_st *sock, int family, int socktype,
 /*
  *  Public
  */
-int Ping::init()
+int Ping::init(char *target)
 {
   int _result { 0 };
 
@@ -169,6 +169,8 @@ int Ping::init()
   createSocket(rts_, &socket_ipv4_, AF_INET, hints_.ai_socktype, IPPROTO_ICMP, hints_.ai_family == AF_INET);
 
   _result += disableCapabilityRaw();
+
+  _result += getaddrinfo(target, nullptr, &hints_, &info_result_);
 
   return _result;
 }

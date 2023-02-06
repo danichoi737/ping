@@ -29,6 +29,7 @@ class Ping
 private:
   socket_st socket_ipv4_;
   addrinfo hints_;
+  addrinfo *info_result_;
   PingRTS *rts_;
   void limitCapabilities(PingRTS *rts);
   int modifyCapability(cap_value_t, cap_flag_value_t);
@@ -39,5 +40,5 @@ private:
 public:
   Ping() = default;
   ~Ping() = default;
-  int init();
+  int init(char *target);
 };

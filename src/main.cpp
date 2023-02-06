@@ -38,5 +38,5 @@ int main(int argc, char **argv)
   target = argv[argc - 1];
 
   Ping *ping = new Ping();
-  ping->init();
+  ping->init(target);
 }
