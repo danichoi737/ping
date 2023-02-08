@@ -2,8 +2,10 @@
  *  Ping class
  */
 
+#include <cstring>
 #include <iostream>
 #include <system_error>
+#include <arpa/inet.h>
 #include <sys/prctl.h>
 #include <unistd.h>
 
@@ -148,6 +150,7 @@ void Ping::createSocket(PingRTS *rts, socket_st *sock, int family, int socktype,
 int Ping::init(char *target)
 {
   int _result { 0 };
+  target_ = target;
 
   socket_ipv4_.fd = AF_INET;
 
@@ -159,6 +162,7 @@ int Ping::init(char *target)
 
   rts_ = new PingRTS;
   rts_->interval = 1000;
+  rts_->datalen = DEFDATALEN;
 
   limitCapabilities(rts_);
 
@@ -170,7 +174,54 @@ int Ping::init(char *target)
 
   _result += disableCapabilityRaw();
 
-  _result += getaddrinfo(target, nullptr, &hints_, &info_result_);
+  _result += getaddrinfo(target_, nullptr, &hints_, &info_result_);
 
   return _result;
+}
+
+void Ping::run()
+{
+  bzero(&rts_->whereto, sizeof(rts_->whereto));
+  // Covert internet host address
+  if (inet_aton(target_, &rts_->whereto.sin_addr) == 1) {
+    rts_->hostname = target_;
+  }
+
+  int _hold { 1 };
+  if (setsockopt(socket_ipv4_.fd, SOL_IP, IP_RECVERR, &_hold, sizeof(_hold))) {
+    std::cerr << "Your kernel is very old." << std::endl;
+  }
+
+  if (socket_ipv4_.socktype == SOCK_DGRAM) {
+    if (setsockopt(socket_ipv4_.fd, SOL_IP, IP_RECVTTL, &_hold, sizeof(_hold))) {
+      std::cerr << std::system_error(errno, std::generic_category()).what() << std::endl;
+    }
+    if (setsockopt(socket_ipv4_.fd, SOL_IP, IP_RETOPTS, &_hold, sizeof(_hold))) {
+      std::cerr << std::system_error(errno, std::generic_category()).what() << std::endl;
+    }
+  }
+
+  // Estimate memory eaten by single socket. It is rough estimate.
+  // Actually, for small datalen's it depends on kernel side a lot.
+  _hold = rts_->datalen + 8;
+  _hold += ((_hold + 511) / 512) * (rts_->optlen + 20 + 16 + 64 + 160);
+  // sock_setbufs()
+
+  // Can we time transfer?
+  if (rts_->datalen >= static_cast<int>(sizeof(timeval))) {
+    rts_->timing = true;
+  }
+  packetlen_ = rts_->datalen + MAXIPLEN + MAXICMPLEN;
+
+  unsigned char *_packet;
+  _packet = new unsigned char[packetlen_];
+
+  std::cout << "PING " << rts_->hostname << " (" << inet_ntoa(rts_->whereto.sin_addr) << ") "
+            << rts_->datalen << "(" << rts_->datalen + 8 + rts_->optlen + 20 << ")" << " "
+            << "bytes of data." << std::endl;
+
+  // TO-DO: drop capabilities
+  // TO-DO: loop
+
+  delete[] _packet;
 }

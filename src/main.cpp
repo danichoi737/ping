@@ -39,4 +39,5 @@ int main(int argc, char **argv)
 
   Ping *ping = new Ping();
   ping->init(target);
+  ping->run();
 }
