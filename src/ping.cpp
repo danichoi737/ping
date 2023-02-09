@@ -70,6 +70,16 @@ void Ping::limitCapabilities(PingRTS *rts)
   rts->uid = getuid();
 }
 
+void Ping::dropCapabilities()
+{
+  cap_t _cap = cap_init();
+  if (cap_set_proc(_cap) < 0) {
+    std::cerr << std::system_error(errno, std::generic_category()).what() << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  cap_free(_cap);
+}
+
 int Ping::modifyCapability(cap_value_t cap, cap_flag_value_t on)
 {
   cap_t _cap_p = cap_get_proc();
@@ -220,7 +230,7 @@ void Ping::run()
             << rts_->datalen << "(" << rts_->datalen + 8 + rts_->optlen + 20 << ")" << " "
             << "bytes of data." << std::endl;
 
-  // TO-DO: drop capabilities
+  dropCapabilities();
   // TO-DO: loop
 
   delete[] _packet;

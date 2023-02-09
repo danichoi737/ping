@@ -46,6 +46,7 @@ private:
   PingRTS *rts_;
   int packetlen_;
   void limitCapabilities(PingRTS *rts);
+  void dropCapabilities();
   int modifyCapability(cap_value_t, cap_flag_value_t);
   int disableCapabilityRaw();
   int enableCapabilityRaw();
