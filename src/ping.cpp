@@ -192,6 +192,7 @@ int Ping::init(char *target)
 void Ping::run()
 {
   bzero(&rts_->whereto, sizeof(rts_->whereto));
+  rts_->whereto.sin_family = AF_INET;
   // Covert internet host address
   if (inet_aton(target_, &rts_->whereto.sin_addr) == 1) {
     rts_->hostname = target_;
