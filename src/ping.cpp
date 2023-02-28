@@ -6,7 +6,9 @@
 #include <iostream>
 #include <system_error>
 #include <arpa/inet.h>
+#include <netinet/ip_icmp.h>
 #include <sys/prctl.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "ping.hpp"
@@ -153,6 +155,119 @@ void Ping::createSocket(PingRTS *rts, socket_st *sock, int family, int socktype,
   }
 }
 
+int Ping::sendProbe(void *packet, unsigned int packet_size)
+{
+  icmphdr *_icp { nullptr };
+  int _cc {};
+  int _i {};
+
+  _icp = static_cast<icmphdr *>(packet);
+  _icp->type = ICMP_ECHO;
+  _icp->code = 0;
+  _icp->checksum = 0;
+  _icp->un.echo.sequence = htons(rts_->ntransmitted + 1);
+  _icp->un.echo.id = rts_->ident;  // ID
+
+  // TO-DO: rcvd_clear()
+
+  if (rts_->timing == true) {
+    bzero(_icp + 1, sizeof(timeval));
+  }
+
+  _cc = rts_->datalen + 8;  // Skips ICMP protion
+
+  // Compute ICMP checksum here
+  // TO-DO: in_cksum()
+
+  if (rts_->timing == true) {
+    timeval _tmp_tv;
+    gettimeofday(&_tmp_tv, nullptr);
+    memcpy(_icp + 1, &_tmp_tv, sizeof(_tmp_tv));
+    // TO-DO: in_cksum()
+  }
+
+  _i = sendto(socket_ipv4_.fd, _icp, _cc, 0, (sockaddr *)&rts_->whereto, sizeof(rts_->whereto));
+
+  return (_cc == _i ? 0 : _i);
+}
+
+int Ping::pinger()
+{
+  static int _tokens {};
+  int _i {};
+
+  // Check that packets < rate * time + preload
+  if (rts_->cur_time.tv_sec == 0) {
+    clock_gettime(CLOCK_MONOTONIC_RAW, &rts_->cur_time);
+    _tokens = rts_->interval * (rts_->preload - 1);
+  } else {
+    // TO-DO
+  }
+
+  // RESEND
+  _i = sendProbe(rts_->outpack, sizeof(rts_->outpack));
+  if (_i == 0) {
+    // TO-DO: advance_ntransmitted()
+    return rts_->interval - _tokens;
+  }
+}
+
+void Ping::loop(uint8_t *packet)
+{
+  char _addrbuf[128] {};
+  char _ans_data[4096] {};
+  iovec _iov {};
+  msghdr _msg {};
+  int _cc {};
+  int _next {};
+  int _polling { 0 };
+
+  while (true)
+  {
+    // TO-DO: Check exit conditions
+
+    do {
+      _next = pinger();
+    } while (_next <= 0);
+
+    while (true)
+    {
+      timeval *_recv_timep { nullptr };
+      timeval _recv_time {};
+
+      _iov.iov_base = static_cast<uint8_t *>(packet);
+      _iov.iov_len = packetlen_;
+      bzero(&_msg, sizeof(_msg));
+      _msg.msg_name = _addrbuf;
+      _msg.msg_namelen = sizeof(_addrbuf);
+      _msg.msg_iov = &_iov;
+      _msg.msg_iovlen = 1;
+      _msg.msg_control = _ans_data;
+      _msg.msg_controllen = sizeof(_ans_data);
+
+      _cc = recvmsg(socket_ipv4_.fd, &_msg, _polling);
+      _polling = MSG_DONTWAIT;
+
+      if (_cc < 0) {
+        // TO-DO
+      } else {
+        cmsghdr *_c;
+        for (_c = CMSG_FIRSTHDR(&_msg); _c; _c = CMSG_NXTHDR(&_msg, _c)) {
+          if (_c->cmsg_level != SOL_SOCKET || _c->cmsg_type != SO_TIMESTAMP) {
+            continue;
+          }
+          if (_c->cmsg_len < CMSG_LEN(sizeof(timeval))) {
+            continue;
+          }
+          _recv_timep = (timeval *)CMSG_DATA(_c);
+        }
+
+        // TO-DO: parse_reply()
+      }
+    }
+  }
+}
+
 
 /*
  *  Public
@@ -172,7 +287,10 @@ int Ping::init(char *target)
 
   rts_ = new PingRTS;
   rts_->interval = 1000;
+  rts_->preload = 1;
   rts_->datalen = DEFDATALEN;
+  rts_->ident = -1;
+  rts_->outpack = new unsigned char { static_cast<unsigned char>(rts_->datalen + 28) };
 
   limitCapabilities(rts_);
 
@@ -232,7 +350,7 @@ void Ping::run()
             << "bytes of data." << std::endl;
 
   dropCapabilities();
-  // TO-DO: loop
+  loop(_packet);
 
   delete[] _packet;
 }

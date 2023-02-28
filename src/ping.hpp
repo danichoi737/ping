@@ -18,6 +18,8 @@ typedef struct socket_st {
  *  Ping runtime state
  */
 struct PingRTS {
+  unsigned char *outpack { nullptr };
+
   int interval;    // Interval between packets (msec)
   uid_t uid;       // User ID
   cap_value_t cap_raw;
@@ -28,8 +30,13 @@ struct PingRTS {
 
   int optlen;
   size_t datalen;
+  int ident;  // Random ID to identify our packets
+
+  long ntransmitted;  // Sequence # for outbound packets = #sent 
+  int preload;
 
   bool timing { false };
+  timespec cur_time;
 };
 
 class Ping
@@ -51,6 +58,9 @@ private:
   int disableCapabilityRaw();
   int enableCapabilityRaw();
   void createSocket(PingRTS *rts, socket_st *sock, int family, int socktype, int protocol, int requisite);
+  int sendProbe(void *packet, unsigned int packet_size);
+  int pinger();
+  void loop(uint8_t *packet);
 
 public:
   Ping() = default;
