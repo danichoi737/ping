@@ -314,6 +314,9 @@ void Ping::run()
   // Covert internet host address
   if (inet_aton(target_, &rts_->whereto.sin_addr) == 1) {
     rts_->hostname = target_;
+  } else {
+    std::cerr << "Address conversion failed." << std::endl;
+    exit(EXIT_FAILURE);
   }
 
   int _hold { 1 };
