@@ -171,7 +171,7 @@ int Ping::sendProbe(void *packet, unsigned int packet_size)
   // TO-DO: rcvd_clear()
 
   if (rts_->timing == true) {
-    bzero(_icp + 1, sizeof(timeval));
+    std::memset(_icp + 1, sizeof(timeval), 0);
   }
 
   _cc = rts_->datalen + 8;  // Skips ICMP protion
@@ -237,7 +237,7 @@ void Ping::loop(uint8_t *packet)
 
       _iov.iov_base = static_cast<uint8_t *>(packet);
       _iov.iov_len = packetlen_;
-      bzero(&_msg, sizeof(_msg));
+      std::memset(&_msg, sizeof(_msg), 0);
       _msg.msg_name = _addrbuf;
       _msg.msg_namelen = sizeof(_addrbuf);
       _msg.msg_iov = &_iov;
@@ -309,7 +309,7 @@ int Ping::init(char *target)
 
 void Ping::run()
 {
-  bzero(&rts_->whereto, sizeof(rts_->whereto));
+  std::memset(&rts_->whereto, sizeof(rts_->whereto), 0);
   rts_->whereto.sin_family = AF_INET;
   // Covert internet host address
   if (inet_aton(target_, &rts_->whereto.sin_addr) == 1) {
